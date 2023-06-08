@@ -1,3 +1,9 @@
+#=
+This code test the performs the convergence study for 1d-ESDG method for with refrence solution computed at 
+    fine grid with N=5 and K=2000
+=#
+
+
 using LinearAlgebra, SparseArrays, StaticArrays 
 using StartUpDG
 using Plots
@@ -5,14 +11,10 @@ using Revise
 using OrdinaryDiffEq
 using Trixi: cons2prim, prim2cons, cons2entropy, ln_mean, inv_ln_mean, CompressibleEulerEquations1D, DissipationLocalLaxFriedrichs
 using MAT
-using Logging: global_logger
-using TerminalLoggers: TerminalLogger
-global_logger(TerminalLogger())
 using ForwardDiff
 
 function initial_condition(x, equations::CompressibleEulerEquations1D) 
     A = 1.0 - 0.2 * (1 + cos(pi * (x - 0.5) / 0.5))
-    #rho = 1.0 + 0.1 * exp(-100 * (x)^2) # Ref 0.5 => 0.1
     rho = 1.0 - 0.1 * (1 + sin(pi * (x - 0.1) / 0.5))
     u   = 0.0
     p   = rho^equations.gamma
@@ -21,29 +23,6 @@ function initial_condition(x, equations::CompressibleEulerEquations1D)
 end
 
 
-function manufacture_sol(x0, t0, equations::CompressibleEulerEquations1D)
-    
-    A(x, t) =   1.0 - 0.2 * (1.0 + cos(pi * (x - 0.5) / 0.5))
-    rho(x, t) = (1.0 + 0.5*sin(2*pi*x) + 0.5*cos(2*pi*x))*exp(-t)
-    u(x, t) =   (1.0 + 0.7*sin(2*pi*x) + 0.2*cos(2*pi*x))*exp(-t)
-    p(x, t) =   (1.0 + 0.7*sin(2*pi*x) + 0.3*cos(2*pi*x))*exp(-t)
-    
-    E(x, t) = (1.0/2.0)*rho(x, t) * u(x, t)^2 + p(x,t)/(equations.gamma - 1.0)
-
-    rho_0 = rho(x0, t0)
-    u_0 =  u(x0, t0)
-    p_0 =  p(x0, t0)
-    
-    q = SVector(rho_0, u_0, p_0)
-
-    f_1(x, t) = ForwardDiff.derivative(t -> A(x,t)*rho(x,t), t) + ForwardDiff.derivative(x -> A(x,t) * rho(x,t) * u(x,t), x) - ForwardDiff.derivative(x -> A(x, t), x)
-    
-    f_2(x, t) = ForwardDiff.derivative(t -> A(x,t)*rho(x,t) * u(x, t), t) + 
-                ForwardDiff.derivative(x -> A(x, t)*rho(x, t) *u(x, t) * u(x, t), x) - ForwardDiff.derivative(x -> A(x, t), x)*p(x, t)
-    
-    f_3(x, t) = ForwardDiff.derivative(t -> A(x, t)*E(x, t), t) + ForwardDiff.derivative( x -> A(x, t)*u(x, t)*(E(x, t) + p(x, t)), x) 
-    return SVector(A * prim2cons(q, equations)..., A), f1, f2, f3
-end 
 
 function A2cons(uA, ::CompressibleEulerEquations1D)
     A = uA[4]
@@ -91,11 +70,13 @@ function rhs!(du::Matrix{<:SVector}, u, parameters, t)
 
     uf = u[rd.Fmask, :]
     uP = uf[md.mapP]
-    for i in md.mapB
-        rhoA, rhoAu, E, A = uf[i]
-        uP[i] = SVector(rhoA, -rhoAu, E, A)
-        # uP[i] = initial_condition(md.xf[i], equations)
-    end
+    
+    # for i in md.mapB
+    #     rhoA, rhoAu, E, A = uf[i]
+    #     uP[i] = SVector(rhoA, -rhoAu, E, A)
+    #     # uP[i] = initial_condition(md.xf[i], equations)
+    # end
+    
     interface_flux = @. flux_ec(uf, uP, equations) * nxJ - LxF_penalty(uf, uP, equations)
     mul!(du, rd.LIFT, interface_flux)
     for e in 1:md.num_elements
@@ -109,8 +90,8 @@ end
 N_arr = [1, 2, 3, 4, 5]
 K_arr = [1, 2, 3, 4, 5]
 
-for i = 1:length(N_arr)
-    for j =1:length(N_arr)
+for i = eachindex(N_arr)
+    for j =eachindex(N_arr)
         println("Started Convergence!")     
         N_loc = N_arr[i]
         K_loc = 2^K_arr[j]

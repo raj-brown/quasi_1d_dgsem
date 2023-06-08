@@ -1,3 +1,9 @@
+#=
+This code test the performs the convergence study for 1d-ESDG method for with refrence solution constructed 
+    by using manufactured solution methos
+=#
+
+
 using LinearAlgebra, SparseArrays, StaticArrays 
 using StartUpDG
 using Plots
@@ -5,9 +11,6 @@ using Revise
 using OrdinaryDiffEq
 using Trixi: cons2prim, prim2cons, cons2entropy, ln_mean, inv_ln_mean, CompressibleEulerEquations1D, DissipationLocalLaxFriedrichs
 using MAT
-# using Logging: global_logger
-# using TerminalLoggers: TerminalLogger
-# global_logger(TerminalLogger())
 using ForwardDiff
 
 function primitive_manufactured_sol()
@@ -103,60 +106,57 @@ function rhs!(du::Matrix{<:SVector}, u, parameters, t)
     @. du = du + source(md.x, t, equations)
 end
 
+println("Started Convergence!")  
 
-println("Started Convergence!")     
-N = 3
-K = 64
-rd = RefElemData(Line(), SBP(), N)
-md = MeshData(uniform_mesh(Line(), K), rd)
-md = make_periodic(md)
-equations = CompressibleEulerEquations1D(1.4)
-Qr = rd.M * rd.Dr
-D_skew = rd.M \ (Qr - Qr')
-params = (; rd, md, D_skew, equations, source)
-println("Initializing Manufacture Solution")
-u = manufacture_sol.(md.x, 0.0, equations) 
+N_arr = [1, 2, 3, 4, 5]
+K_arr = [2, 2^2, 2^3, 2^4, 2^5]
 
-# check entropy residual 
-println("Checking Entropy Residuals!")
-du = similar(u)
-rhs!(du, u, params, 0.0)
-w = map(x -> SVector{4}(x..., 0.0), cons2entropy.(A2cons.(u, equations), equations))
-@show sum(dot.(w, md.wJq .* du))
+for i =eachindex(N_arr)
+    for j =eachindex(N_arr)
+        println("Started Convergence!")     
+        N = N_arr[i]
+        K = K_arr[j]
+        rd = RefElemData(Line(), SBP(), N)
+        md = MeshData(uniform_mesh(Line(), K), rd)
+        md = make_periodic(md)
+        equations = CompressibleEulerEquations1D(1.4)
+        Qr = rd.M * rd.Dr
+        D_skew = rd.M \ (Qr - Qr')
+        params = (; rd, md, D_skew, equations, source)
+        println("Initializing Manufacture Solution")
+        u = manufacture_sol.(md.x, 0.0, equations) 
 
-tspan = (0, .1)
-ode = ODEProblem(rhs!, u, tspan, params)
-println("Computing...")
-sol = solve(ode, RK4(), saveat=LinRange(tspan..., 50), abstol=1e-10, reltol=1e-10)
-#sol_md = "sol_N"*string(N_loc)*"_K"*string(K_loc)*".mat"
-u = sol.u[end]
-rhoA = getindex.(u, 1)
-rhouA = getindex.(u, 2)
-EA = getindex.(u, 3)
+        # check entropy residual 
+        println("Checking Entropy Residuals!")
+        du = similar(u)
+        rhs!(du, u, params, 0.0)
+        w = map(x -> SVector{4}(x..., 0.0), cons2entropy.(A2cons.(u, equations), equations))
+        @show sum(dot.(w, md.wJq .* du))
 
-A = getindex.(u, 4)
-rho = rhoA./A
-rhou = rhouA./A
-E = EA ./ A
-#@show rho
-plot(rd.Vp * md.x, rd.Vp * (rho), leg=false)
-A, rho, u, p = primitive_manufactured_sol()
-rhox = rho.(rd.Vp * md.x, sol.t[end])
-plot!(rd.Vp * md.x, rhox, leg=false, ylims=(0.5, 1.5))
+        tspan = (0, .1)
+        ode = ODEProblem(rhs!, u, tspan, params)
+        println("Computing...")
+        sol = solve(ode, RK4(), saveat=LinRange(tspan..., 50), abstol=1e-10, reltol=1e-10)
+        sol_md = "Num_Manu_sol_N"*string(N)*"_K"*string(K)*".mat"
+        sol_md_a = "Ana_Manu_sol_N"*string(N)*"_K"*string(K)*".mat"
 
-#gui()
+        u = sol.u[end]
+        rhoA = getindex.(u, 1)
+        rhouA = getindex.(u, 2)
+        EA = getindex.(u, 3)
+        A = getindex.(u, 4)
+ 
 
-#matwrite(sol_md, Dict( "x" => md.x, "rho" => rho, "rhou" => rhou, "E"=>E); compress = true)
-        
-   
+        u_a = manufacture_sol.(md.x, tspan[end], equations)
+        rhoA_a = getindex.(u_a, 1)
+        rhouA_a = getindex.(u_a, 2)
+        EA_a = getindex.(u_a, 3)
+        A_a = getindex.(u_a, 4)
+       
+          
+        matwrite(sol_md, Dict( "wJq" => md.wJq, "x" => md.x, "rho" => rhoA ./ A, "rhou" => rhouA ./ A, "E"=>EA ./ A); compress = true)
+        matwrite(sol_md_a, Dict( "wJq" => md.wJq, "x" => md.x, "rho_a" => rhoA_a ./ A_a, "rhou_a" => rhouA_a ./ A_a, 
+        "E_a"=>EA_a ./ A_a); compress = true)
+    end
+end
 
-
-
-# @gif for u in sol.u
-#     rhoA = getindex.(u, 1)
-#     A = getindex.(u, 4)
-#     plot(rd.Vp * md.x, rd.Vp * (rhoA ./ A), leg=false, ylims=(.5, 1.5))
-# end
-
-
-#@show size(rd.Vp)

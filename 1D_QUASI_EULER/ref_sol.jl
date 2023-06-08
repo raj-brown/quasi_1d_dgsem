@@ -1,37 +1,30 @@
+#=
+This code computes the fine grid reference solution for convergence study.
+=#
+
+
 using LinearAlgebra, SparseArrays, StaticArrays 
 using StartUpDG
 using Plots
+using Revise
 using OrdinaryDiffEq
-using Trixi: prim2cons, cons2entropy, ln_mean, inv_ln_mean, CompressibleEulerEquations1D
+using Trixi: cons2prim, prim2cons, cons2entropy, ln_mean, inv_ln_mean, CompressibleEulerEquations1D, DissipationLocalLaxFriedrichs
+using MAT
+using Logging: global_logger
+using TerminalLoggers: TerminalLogger
+global_logger(TerminalLogger())
+using ForwardDiff
 
-function s(x)
-    if (x >= 0) & x <= 5
-        f = 1 + 1.5*(1 - x/5)^2
-    else
-        if x >= 5 && x <= 10
-            f = 1 + 0.5*(1 - x/5)^2;
-        end 
-    end
-end
-
-
-function initial_condition(x, equations::CompressibleEulerEquations1D)
-    
-    A = 1 - 0.2 * (1 + cos(pi * (x - 0.5) / 0.5))
-
-    rho = 1.0 + .5 * exp(-100 * x^2)
+function initial_condition(x, equations::CompressibleEulerEquations1D) 
+    A = 1.0 - 0.2 * (1 + cos(pi * (x - 0.5) / 0.5))
+    rho = 1.0 - 0.1 * (1 + sin(pi * (x - 0.1) / 0.5))    
     u   = 0.0
     p   = rho^equations.gamma
-
-    # if x < 0
-    #     rho, u, p, A = 3.4718, -2.5923, 5.7118, 1
-    # else
-    #     rho, u, p, A = 2, -3, 2.639, 1.5
-    # end
-
     q = SVector(rho, u, p)
     return SVector(A * prim2cons(q, equations)..., A)
 end
+
+
 
 function A2cons(uA, ::CompressibleEulerEquations1D)
     A = uA[4]
@@ -65,6 +58,7 @@ function flux_ec(uA_ll, uA_rr, equations::CompressibleEulerEquations1D)
 end
 
 LxF_dissipation = DissipationLocalLaxFriedrichs()
+
 function LxF_penalty(u_l, u_r, equations::CompressibleEulerEquations1D)
     val = -LxF_dissipation(u_l, u_r, 1, equations) # this is -lambda / 2 * (u_r - u_l)
     return SVector(val[1], val[2], val[3], 0)
@@ -93,37 +87,37 @@ function rhs!(du::Matrix{<:SVector}, u, parameters, t)
     du ./= -J
 end
 
-N = 3
+N = 5
+K = 2000
+       
 rd = RefElemData(Line(), SBP(), N)
-md = MeshData(uniform_mesh(Line(), 100), rd)
-# md = make_periodic(md)
-
+md = MeshData(uniform_mesh(Line(), K), rd)
+md = make_periodic(md)
 equations = CompressibleEulerEquations1D(1.4)
-
 Qr = rd.M * rd.Dr
 D_skew = rd.M \ (Qr - Qr')
 params = (; rd, md, D_skew, equations)
 u = initial_condition.(md.x, equations)
-
-# rq, wq = gauss_quad(0, 0, N)
-# Vq = vandermonde(Line(), N, rq) / rd.VDM
-# Pq = (Vq' * diagm(wq) * Vq) \ (Vq' * diagm(wq))
-# xq = Vq * md.x
-# u = Pq * initial_condition.(xq, equations)
-
 # check entropy residual 
 du = similar(u)
 rhs!(du, u, params, 0.0)
 w = map(x -> SVector{4}(x..., 0.0), cons2entropy.(A2cons.(u, equations), equations))
 @show sum(dot.(w, md.wJq .* du))
-
-tspan = (0, 4.0)
+tspan = (0, 0.1)
 ode = ODEProblem(rhs!, u, tspan, params)
-sol = solve(ode, RK4(), saveat=LinRange(tspan..., 50))
+println("Computing...")
+sol = solve(ode, RK4(), saveat=LinRange(tspan..., 50), abstol=1e-10, reltol=1e-10)
+sol_md = "Ref_sol_N_"*string(N)*"_K_"*string(K)*".mat"
+u = sol.u[end]
+rhoA = getindex.(u, 1)
+rhouA = getindex.(u, 2)
+EA = getindex.(u, 3)
+A = getindex.(u, 4)
+#rho = rhoA ./ A
+rhou = rhouA ./ A
+E = EA ./ A
+matwrite(sol_md, Dict( "x" => md.x, "rho" => rhoA ./ A, "rhou" => rhou, "E"=>E); compress = true)
+     
 
-@gif for u in sol.u
-    rhoA = getindex.(u, 1)
-    A = getindex.(u, 4)
-    plot(rd.Vp * md.x, rd.Vp * (rhoA ./ A), leg=false, ylims=(.5, 1.5))
-end
+
 
