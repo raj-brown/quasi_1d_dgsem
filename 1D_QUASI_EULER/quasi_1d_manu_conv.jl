@@ -1,9 +1,3 @@
-#=
-This code test the performs the convergence study for 1d-ESDG method for with refrence solution constructed 
-    by using manufactured solution methos
-=#
-
-
 using LinearAlgebra, SparseArrays, StaticArrays 
 using StartUpDG
 using Plots
@@ -14,7 +8,7 @@ using MAT
 using ForwardDiff
 
 function primitive_manufactured_sol()
-    A(x, t) =   1.0 - 0.1 * (1.0 + cos(pi * (x - 0.5) / 0.5))
+    A(x, t) =   1.0 - 0.1*(1.0 + cos(pi * (x - 0.5) / 0.5))
     rho(x, t) = (1.0 + 0.1*sin(2*pi*x) + 0.1*cos(2*pi*x))*exp(-t)
     u(x, t) =   (1.0 + 0.1*sin(2*pi*x) + 0.1*cos(2*pi*x))*exp(-t)
     p(x, t) =   (1.0 + 0.1*sin(2*pi*x) + 0.1*cos(2*pi*x))*exp(-t)    
@@ -116,6 +110,7 @@ for i =eachindex(N_arr)
         println("Started Convergence!")     
         N = N_arr[i]
         K = K_arr[j]
+        @show K
         rd = RefElemData(Line(), SBP(), N)
         md = MeshData(uniform_mesh(Line(), K), rd)
         md = make_periodic(md)
@@ -133,7 +128,7 @@ for i =eachindex(N_arr)
         w = map(x -> SVector{4}(x..., 0.0), cons2entropy.(A2cons.(u, equations), equations))
         @show sum(dot.(w, md.wJq .* du))
 
-        tspan = (0, .1)
+        tspan = (0, 0.10)
         ode = ODEProblem(rhs!, u, tspan, params)
         println("Computing...")
         sol = solve(ode, RK4(), saveat=LinRange(tspan..., 50), abstol=1e-10, reltol=1e-10)
@@ -154,9 +149,10 @@ for i =eachindex(N_arr)
         A_a = getindex.(u_a, 4)
        
           
-        matwrite(sol_md, Dict( "wJq" => md.wJq, "x" => md.x, "rho" => rhoA ./ A, "rhou" => rhouA ./ A, "E"=>EA ./ A); compress = true)
+        matwrite(sol_md, Dict( "wJq" => md.wJq, "x" => md.x, "rho" => rhoA ./ A, "rhou" => rhouA ./ A, "E"=>EA ./ A);
+         compress = true)
         matwrite(sol_md_a, Dict( "wJq" => md.wJq, "x" => md.x, "rho_a" => rhoA_a ./ A_a, "rhou_a" => rhouA_a ./ A_a, 
-        "E_a"=>EA_a ./ A_a); compress = true)
+        "E_a" => EA_a ./ A_a); compress = true)
     end
 end
 
