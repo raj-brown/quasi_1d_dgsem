@@ -1,0 +1,9 @@
+[deps]
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+MAT = "23992714-dd62-5051-b70f-ba57cb901cac"
+OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+StartUpDG = "472ebc20-7c99-4d4b-9470-8fde4e9faa0f"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+SummationByPartsOperators = "9f78cca6-572e-554e-b819-917d2f1cf240"
+Trixi = "a7f1ee26-1774-49b1-8366-f1abc58fbfcb"
