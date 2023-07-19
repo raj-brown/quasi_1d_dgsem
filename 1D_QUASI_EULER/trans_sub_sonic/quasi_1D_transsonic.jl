@@ -128,7 +128,7 @@ w = map(x -> SVector{4}(x..., 0.0), cons2entropy.(A2cons.(u, equations), equatio
 @show sum(dot.(w, md.wJq .* du))
 
 println("Computing the ODE solution...")
-tspan = (0, 1.0)
+tspan = (0, 5.0)
 ode = ODEProblem(rhs!, u, tspan, params)
 sol = solve(ode,  RDPK3SpFSAL49(), saveat=LinRange(tspan..., 100), 
             abstol=1e-10, reltol=1e-10, callback=AliveCallback(alive_interval=100))

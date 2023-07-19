@@ -1,17 +1,13 @@
-using LinearAlgebra
 using Plots
 using MAT
-using Revise
 
 error_mat_rho = zeros(5, 5)
 error_mat_rhou = zeros(5, 5)
 error_mat_E = zeros(5, 5)
 
-
-
-
 N_arr = [1, 2, 3, 4, 5]
-K_arr = [2, 2^2, 2^3, 2^4, 2^5]
+K_arr = [5, 10, 20, 40, 80]
+
 
 for i=eachindex(N_arr)
     for j =eachindex(K_arr)
