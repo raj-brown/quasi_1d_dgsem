@@ -100,7 +100,7 @@ println("Started Convergence!")
 
 N_arr = [1, 2, 3, 4, 5]
 #K_arr = [2, 2^2, 2^3, 2^4, 2^5]
-#K_arr = [5, 10, 20, 40, 80]
+K_arr = [5, 10, 20, 40, 80]
 #K_arr = [16, 32, 64, 128, 256]
 
 
@@ -148,10 +148,16 @@ for i =eachindex(N_arr)
         A_a = getindex.(u_a, 4)
        
           
-        matwrite(sol_md, Dict( "wJq" => md.wJq, "x" => md.x, "rho" => rhoA ./ A, "rhou" => rhouA ./ A, "E"=>EA ./ A);
-         compress = true)
-        matwrite(sol_md_a, Dict( "wJq" => md.wJq, "x" => md.x, "rho_a" => rhoA_a ./ A_a, "rhou_a" => rhouA_a ./ A_a, 
-        "E_a" => EA_a ./ A_a); compress = true)
+        # matwrite(sol_md, Dict( "wJq" => md.wJq, "x" => md.x, "rho" => rhoA ./ A, "rhou" => rhouA ./ A, "E"=>EA ./ A);
+        #  compress = true)
+        # matwrite(sol_md_a, Dict( "wJq" => md.wJq, "x" => md.x, "rho_a" => rhoA_a ./ A_a, "rhou_a" => rhouA_a ./ A_a, 
+        # "E_a" => EA_a ./ A_a); compress = true)
+
+
+        matwrite(sol_md, Dict( "wJq" => md.wJq, "x" => md.x, "rho" => rhoA, "rhou" => rhouA, "E"=>EA);
+        compress = true)
+        matwrite(sol_md_a, Dict( "wJq" => md.wJq, "x" => md.x, "rho_a" => rhoA_a, "rhou_a" => rhouA_a, 
+        "E_a" => EA_a); compress = true)
     end
 end
 
